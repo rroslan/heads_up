@@ -1,12 +1,23 @@
 defmodule HeadsUp.Accounts do
   @moduledoc """
   The Accounts context.
+  
+  This context handles all user management, authentication, and authorization
+  operations including admin functions for user management.
   """
 
   import Ecto.Query, warn: false
   alias HeadsUp.Repo
 
   alias HeadsUp.Accounts.{User, UserToken, UserNotifier}
+
+  @type pagination :: %{page: integer, per_page: integer}
+  @type user_stats :: %{
+    total_users: integer, 
+    active_users: integer, 
+    admin_users: integer, 
+    unconfirmed_users: integer
+  }
 
   ## Database getters
 
@@ -302,5 +313,237 @@ defmodule HeadsUp.Accounts do
            |> Repo.transaction() do
       {:ok, user, expired_tokens}
     end
+  end
+
+  ## Admin functions
+
+  @doc """
+  Returns a paginated list of users.
+
+  ## Options
+
+  * `:page` - The page number (default: 1)
+  * `:per_page` - Number of users per page (default: 20)
+  * `:sort_by` - Field to sort by (default: :inserted_at)
+  * `:sort_direction` - Sort direction (:asc or :desc, default: :desc)
+  * `:filter` - Optional filter criteria (e.g., %{is_admin: true})
+
+  ## Examples
+
+      iex> list_users()
+      [%User{}, ...]
+
+      iex> list_users(%{page: 2, per_page: 10})
+      [%User{}, ...]
+
+      iex> list_users(%{filter: %{is_admin: true}})
+      [%User{is_admin: true}, ...]
+
+  """
+  @spec list_users(map()) :: {[User.t()], map()}
+  def list_users(opts \\ %{}) do
+    page = Map.get(opts, :page, 1)
+    per_page = Map.get(opts, :per_page, 20)
+    sort_by = Map.get(opts, :sort_by, :inserted_at)
+    sort_direction = Map.get(opts, :sort_direction, :desc)
+    filter = Map.get(opts, :filter, %{})
+
+    query = from(u in User)
+
+    query =
+      Enum.reduce(filter, query, fn
+        {:is_admin, value}, query ->
+          from(u in query, where: u.is_admin == ^value)
+
+        {:confirmed, value}, query ->
+          case value do
+            true -> from(u in query, where: not is_nil(u.confirmed_at))
+            false -> from(u in query, where: is_nil(u.confirmed_at))
+            _ -> query
+          end
+
+        {:search, term}, query when is_binary(term) and term != "" ->
+          term = "%#{term}%"
+          from(u in query, where: ilike(u.email, ^term))
+
+        _, query ->
+          query
+      end)
+
+    # Get total count before pagination
+    total_count = Repo.aggregate(query, :count, :id)
+
+    # Apply sorting and pagination
+    query =
+      from(u in query,
+        order_by: [{^sort_direction, ^sort_by}],
+        offset: ^((page - 1) * per_page),
+        limit: ^per_page
+      )
+
+    users = Repo.all(query)
+
+    {users,
+     %{
+       page: page,
+       per_page: per_page,
+       total_count: total_count,
+       total_pages: ceil(total_count / per_page)
+     }}
+  end
+
+  @doc """
+  Gets statistics about users in the system.
+
+  Returns a map with:
+  * `:total_users` - Total number of users
+  * `:active_users` - Users who have authenticated in the last 30 days
+  * `:admin_users` - Number of users with admin privileges
+  * `:unconfirmed_users` - Users who haven't confirmed their accounts
+
+  ## Examples
+
+      iex> get_user_stats()
+      %{
+        total_users: 100,
+        active_users: 42,
+        admin_users: 5,
+        unconfirmed_users: 10
+      }
+
+  """
+  @spec get_user_stats() :: user_stats()
+  def get_user_stats do
+    # Total users
+    total_users = Repo.aggregate(User, :count, :id)
+
+    # Users with admin privileges
+    admin_query = from(u in User, where: u.is_admin == true)
+    admin_users = Repo.aggregate(admin_query, :count, :id)
+
+    # Unconfirmed users
+    unconfirmed_query = from(u in User, where: is_nil(u.confirmed_at))
+    unconfirmed_users = Repo.aggregate(unconfirmed_query, :count, :id)
+
+    # Active users in the last 30 days
+    thirty_days_ago = DateTime.utc_now() |> DateTime.add(-30, :day)
+
+    # Use a subquery to count unique user_ids to avoid the GROUP BY issue
+    active_query =
+      from(u in User,
+        join: t in UserToken,
+        on: t.user_id == u.id,
+        where: t.context == "session" and t.inserted_at > ^thirty_days_ago,
+        distinct: u.id,
+        select: count(u.id)
+      )
+
+    active_users = Repo.one(active_query) || 0
+
+    %{
+      total_users: total_users,
+      active_users: active_users,
+      admin_users: admin_users,
+      unconfirmed_users: unconfirmed_users
+    }
+  end
+
+  @doc """
+  Sets the admin status for a user.
+
+  This function should only be called by admin users or system processes.
+  It allows toggling the admin status of a user account.
+
+  ## Examples
+
+      iex> set_admin_status(user, true)
+      {:ok, %User{is_admin: true}}
+
+      iex> set_admin_status(user, false)
+      {:ok, %User{is_admin: false}}
+
+  """
+  @spec set_admin_status(User.t(), boolean()) :: {:ok, User.t()} | {:error, Ecto.Changeset.t()}
+  def set_admin_status(%User{} = user, is_admin) when is_boolean(is_admin) do
+    user
+    |> User.admin_changeset(is_admin)
+    |> Repo.update()
+  end
+
+  @doc """
+  Gets activity information for a user.
+
+  Returns a map with:
+  * `:last_login` - Timestamp of the user's most recent login
+  * `:login_count` - Number of times the user has logged in
+  * `:created_at` - When the user was created
+  * `:confirmed_at` - When the user confirmed their account (if applicable)
+
+  ## Examples
+
+      iex> get_user_activity(user)
+      %{
+        last_login: ~U[2023-01-01 00:00:00Z],
+        login_count: 5,
+        created_at: ~U[2022-01-01 00:00:00Z],
+        confirmed_at: ~U[2022-01-02 00:00:00Z]
+      }
+
+  """
+  @spec get_user_activity(User.t()) :: map()
+  def get_user_activity(%User{} = user) do
+    # Get the most recent session token
+    last_session_query =
+      from(t in UserToken,
+        where: t.user_id == ^user.id and t.context == "session",
+        order_by: [desc: t.inserted_at],
+        limit: 1,
+        select: t.inserted_at
+      )
+
+    last_login = Repo.one(last_session_query)
+
+    # Count the number of logins
+    login_count_query =
+      from(t in UserToken,
+        where: t.user_id == ^user.id and t.context == "login",
+        select: count(t.id)
+      )
+
+    login_count = Repo.one(login_count_query) || 0
+
+    %{
+      last_login: last_login,
+      login_count: login_count,
+      created_at: user.inserted_at,
+      confirmed_at: user.confirmed_at
+    }
+  end
+
+  @doc """
+  Returns a list of the most recently registered users.
+
+  ## Options
+
+  * `:limit` - Maximum number of users to return (default: 5)
+
+  ## Examples
+
+      iex> list_recent_users()
+      [%User{}, ...]
+
+      iex> list_recent_users(10)
+      [%User{}, ...]
+
+  """
+  @spec list_recent_users(integer()) :: [User.t()]
+  def list_recent_users(limit \\ 5) do
+    query =
+      from(u in User,
+        order_by: [desc: u.inserted_at],
+        limit: ^limit
+      )
+
+    Repo.all(query)
   end
 end
