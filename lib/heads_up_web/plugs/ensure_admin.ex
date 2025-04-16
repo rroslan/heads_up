@@ -21,9 +21,6 @@ defmodule HeadsUpWeb.Plugs.EnsureAdmin do
   import Plug.Conn
   import Phoenix.Controller
 
-  alias HeadsUpWeb.Router.Helpers, as: Routes
-  alias HeadsUp.Accounts.Scope
-
   @doc """
   Ensures the user is an admin.
   """

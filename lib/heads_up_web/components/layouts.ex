@@ -17,8 +17,11 @@ defmodule HeadsUpWeb.Layouts do
   ## Attributes
   
   * `current_user` - The current authenticated user (optional)
+  * `flash` - Flash messages to be displayed
   """
   attr :current_user, :map, default: nil
+  attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
+  slot :inner_block, required: true, doc: "the inner content of the layout"
   
   def app(assigns) do
     ~H"""
