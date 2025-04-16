@@ -7,7 +7,7 @@ defmodule HeadsUpWeb.UserLive.Settings do
 
   def render(assigns) do
     ~H"""
-    <Layouts.app flash={@flash} current_scope={@current_scope}>
+    <Layouts.app flash={@flash} current_user={@current_user}>
       <.header class="text-center">
         Account Settings
         <:subtitle>Manage your account email address and password settings</:subtitle>
