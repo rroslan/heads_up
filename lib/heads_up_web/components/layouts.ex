@@ -11,32 +11,73 @@ defmodule HeadsUpWeb.Layouts do
 
   embed_templates "layouts/*"
 
+  @doc """
+  The app layout that wraps all pages.
+  
+  ## Attributes
+  
+  * `current_user` - The current authenticated user (optional)
+  """
+  attr :current_user, :map, default: nil
+  
   def app(assigns) do
     ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
+    <header class="bg-base-100 shadow-sm">
+      <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <!-- Left side - Logo/Brand -->
+          <div class="flex items-center">
+            <a href="/" class="flex items-center gap-2">
+              <img src={~p"/images/logo.svg"} width="36" alt="Heads Up Logo" />
+              <span class="text-lg font-semibold">Heads Up</span>
             </a>
-          </li>
-        </ul>
+          </div>
+          
+          <!-- Right side - Navigation -->
+          <div class="flex items-center space-x-4">
+            <!-- Main Navigation -->
+            <nav class="flex items-center space-x-2">
+              <a href="/" class="btn btn-ghost btn-sm">Home</a>
+              
+              <%= if @current_user && @current_user.is_admin do %>
+                <a href="/admin/dashboard" class="btn btn-ghost btn-sm">
+                  Dashboard
+                </a>
+              <% end %>
+            </nav>
+            
+            <!-- Theme toggle -->
+            <div class="mr-2">
+              <.theme_toggle />
+            </div>
+            
+            <!-- User account navigation -->
+            <div class="flex items-center">
+              <%= if @current_user do %>
+                <div class="dropdown dropdown-end">
+                  <label tabindex="0" class="btn btn-ghost btn-sm">
+                    <%= @current_user.email |> String.split("@") |> hd() %>
+                    <.icon name="hero-chevron-down-micro" class="ml-1 size-4" />
+                  </label>
+                  <ul tabindex="0" class="dropdown-content z-10 menu p-2 shadow bg-base-100 rounded-box w-52">
+                    <li>
+                      <a href={~p"/users/settings"}>Settings</a>
+                    </li>
+                    <li>
+                      <.link href={~p"/users/log-out"} method="delete">
+                        Logout
+                      </.link>
+                    </li>
+                  </ul>
+                </div>
+              <% else %>
+                <a href={~p"/users/log-in"} class="btn btn-primary btn-sm">
+                  Login <span aria-hidden="true">&rarr;</span>
+                </a>
+              <% end %>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 

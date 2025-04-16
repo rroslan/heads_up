@@ -97,15 +97,22 @@ defmodule HeadsUpWeb.UserAuth do
     |> redirect(to: ~p"/")
   end
 
-  @doc """
-  Authenticates the user by looking into the session
-  and remember me token.
-  """
-  def fetch_current_scope_for_user(conn, _opts) do
-    {user_token, conn} = ensure_user_token(conn)
-    user = user_token && Accounts.get_user_by_session_token(user_token)
-    assign(conn, :current_scope, Scope.for_user(user))
-  end
+@doc """
+A plug that assigns the current scope and user to the connection.
+
+Assigns:
+- `:current_scope` - the scope for the current user
+- `:current_user` - the current user if authenticated
+"""
+def fetch_current_scope_for_user(conn, _opts) do
+  {user_token, conn} = ensure_user_token(conn)
+  user = user_token && Accounts.get_user_by_session_token(user_token)
+  scope = Scope.for_user(user)
+  
+  conn
+  |> assign(:current_scope, scope)
+  |> assign(:current_user, user)
+end
 
   defp ensure_user_token(conn) do
     if token = get_session(conn, :user_token) do
@@ -187,16 +194,21 @@ defmodule HeadsUpWeb.UserAuth do
     end
   end
 
-  defp mount_current_scope(socket, session) do
-    Phoenix.Component.assign_new(socket, :current_scope, fn ->
-      user =
-        if user_token = session["user_token"] do
-          Accounts.get_user_by_session_token(user_token)
-        end
+defp mount_current_scope(socket, session) do
+  # First, get the user from the session token
+  user = 
+    if user_token = session["user_token"] do
+      Accounts.get_user_by_session_token(user_token)
+    end
 
-      Scope.for_user(user)
-    end)
-  end
+  # Create the scope for the user
+  scope = Scope.for_user(user)
+  
+  # Assign both values to the socket for flexibility in templates and LiveViews
+  socket
+  |> Phoenix.Component.assign_new(:current_scope, fn -> scope end)
+  |> Phoenix.Component.assign_new(:current_user, fn -> user end)
+end
 
   @doc """
   Used for routes that require the user to be authenticated.

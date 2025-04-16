@@ -2,6 +2,7 @@ defmodule HeadsUpWeb.Router do
   use HeadsUpWeb, :router
 
   import HeadsUpWeb.UserAuth
+  import HeadsUpWeb.Plugs.EnsureAdmin
 
   pipeline :browser do
     plug :accepts, ["html"]
@@ -17,10 +18,33 @@ defmodule HeadsUpWeb.Router do
     plug :accepts, ["json"]
   end
 
+  # Admin pipeline for admin-only routes
+  pipeline :admin do
+    plug :require_authenticated_user
+    plug :ensure_admin
+  end
+
+  # Public routes accessible to all users
   scope "/", HeadsUpWeb do
     pipe_through :browser
 
-    get "/", PageController, :home
+    live_session :public,
+      on_mount: [{HeadsUpWeb.UserAuth, :mount_current_scope}] do
+      live "/", HomeLive, :index
+    end
+  end
+
+  # Admin routes - only accessible to authenticated admin users
+  scope "/admin", HeadsUpWeb.Admin do
+    pipe_through [:browser, :admin]
+    
+    live_session :admin,
+      on_mount: [
+        {HeadsUpWeb.UserAuth, :mount_current_scope},
+        {HeadsUpWeb.Plugs.EnsureAdmin, :ensure_admin}
+      ] do
+      live "/dashboard", DashboardLive, :index
+    end
   end
 
   # Other scopes may use custom stacks.
