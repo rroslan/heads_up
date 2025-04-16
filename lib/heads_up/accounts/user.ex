@@ -9,14 +9,20 @@ defmodule HeadsUp.Accounts.User do
     field :current_password, :string, virtual: true, redact: true
     field :confirmed_at, :utc_datetime
     field :authenticated_at, :utc_datetime, virtual: true
+    field :is_admin, :boolean, default: false
 
     timestamps(type: :utc_datetime)
   end
 
   @doc """
-  A user changeset for registering or changing the email.
+  Changes the admin status of a user.
+  """
+  def admin_changeset(user, is_admin) when is_boolean(is_admin) do
+    change(user, is_admin: is_admin)
+  end
 
-  It requires the email to change otherwise an error is added.
+  @doc """
+  A user changeset for email changes.
 
   ## Options
 
