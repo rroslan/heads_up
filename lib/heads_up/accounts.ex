@@ -428,17 +428,19 @@ defmodule HeadsUp.Accounts do
     # Active users in the last 30 days
     thirty_days_ago = DateTime.utc_now() |> DateTime.add(-30, :day)
 
-    # Use a subquery to count unique user_ids to avoid the GROUP BY issue
-    active_query =
-      from(u in User,
-        join: t in UserToken,
-        on: t.user_id == u.id,
+    # First get distinct user IDs with recent activity
+    active_users_subquery =
+      from(t in UserToken,
         where: t.context == "session" and t.inserted_at > ^thirty_days_ago,
-        distinct: u.id,
-        select: count(u.id)
+        select: t.user_id,
+        distinct: true
       )
 
-    active_users = Repo.one(active_query) || 0
+    # Then count those users
+    active_users =
+      active_users_subquery
+      |> subquery()
+      |> Repo.aggregate(:count, :user_id)
 
     %{
       total_users: total_users,
