@@ -29,13 +29,15 @@ defmodule HeadsUp.AccountsFixtures do
 
   def user_fixture(attrs \\ %{}) do
     user = unconfirmed_user_fixture(attrs)
+    
+    # Explicitly confirm the user
+    {:ok, user} =
+      HeadsUp.Repo.get!(HeadsUp.Accounts.User, user.id)
+      |> HeadsUp.Accounts.User.confirm_changeset()
+      |> HeadsUp.Repo.update()
 
-    token =
-      extract_user_token(fn url ->
-        Accounts.deliver_login_instructions(user, url)
-      end)
-
-    {:ok, user, _expired_tokens} = Accounts.login_user_by_magic_link(token)
+    # Reload the user
+    user = HeadsUp.Repo.get!(HeadsUp.Accounts.User, user.id)
 
     user
   end

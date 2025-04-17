@@ -16,11 +16,6 @@ import Config
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
-config :heads_up, HeadsUp.Mailer,
-  adapter: Resend.Swoosh.Adapter,
-  api_key: System.fetch_env!("RESEND")
-
-config :swoosh, :api_client, Swoosh.ApiClient.Finch
 
 
 if System.get_env("PHX_SERVER") do
@@ -28,6 +23,14 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
+  # Configure the mailer with the Resend API key
+  config :heads_up, HeadsUp.Mailer,
+    api_key: System.get_env("RESEND") ||
+      raise """
+      environment variable RESEND is missing.
+      You need to provide a valid Resend API key for email delivery.
+      """
+
   database_url =
     System.get_env("DATABASE_URL") ||
       raise """
