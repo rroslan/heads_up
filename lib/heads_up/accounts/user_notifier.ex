@@ -9,7 +9,7 @@ defmodule HeadsUp.Accounts.UserNotifier do
     email =
       new()
       |> to(recipient)
-      |> from({"HeadsUp", "contact@example.com"})
+      |> from({"HeadsUp", "noreply@applikasi.tech"})
       |> subject(subject)
       |> text_body(body)
 
