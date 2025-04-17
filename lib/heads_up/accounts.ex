@@ -508,10 +508,9 @@ defmodule HeadsUp.Accounts do
     # Count the number of logins
     login_count_query =
       from(t in UserToken,
-        where: t.user_id == ^user.id and t.context == "login",
+        where: t.user_id == ^user.id and t.context == "session",
         select: count(t.id)
       )
-
     login_count = Repo.one(login_count_query) || 0
 
     %{

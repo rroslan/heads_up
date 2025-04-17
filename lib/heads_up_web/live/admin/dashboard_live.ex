@@ -9,17 +9,17 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
   def mount(_params, _session, socket) do
     # Get user statistics
     stats = Accounts.get_user_stats()
-    
+
     # Get recent users
     recent_users = Accounts.list_recent_users(5)
-    
+
     # Initialize search and pagination
     pagination_opts = %{page: 1, per_page: 10}
     filter_opts = %{}
-    
+
     # Get paginated users
     {users, pagination} = Accounts.list_users(Map.merge(pagination_opts, %{filter: filter_opts}))
-    
+
     socket =
       socket
       |> assign(:page_title, "Admin Dashboard")
@@ -44,7 +44,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
 
     {:ok, socket}
   end
-  
+
   @impl true
   def handle_params(params, _uri, socket) do
     page = String.to_integer(params["page"] || "1")
@@ -52,30 +52,30 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
     admin_filter = params["admin"]
     confirmed_filter = params["confirmed"]
     selected_tab = params["tab"] || socket.assigns.selected_tab
-    
+
     filter_opts = %{}
-    
+
     # Apply search filter if provided
-    filter_opts = if search && search != "", 
-      do: Map.put(filter_opts, :search, search), 
+    filter_opts = if search && search != "",
+      do: Map.put(filter_opts, :search, search),
       else: filter_opts
-    
+
     # Apply admin filter if provided
     filter_opts = case admin_filter do
       "true" -> Map.put(filter_opts, :is_admin, true)
       "false" -> Map.put(filter_opts, :is_admin, false)
       _ -> filter_opts
     end
-    
+
     # Apply confirmed filter if provided
     filter_opts = case confirmed_filter do
       "true" -> Map.put(filter_opts, :confirmed, true)
       "false" -> Map.put(filter_opts, :confirmed, false)
       _ -> filter_opts
     end
-    
+
     # Get paginated users with filters if on users tab
-    {users, pagination} = 
+    {users, pagination} =
       if selected_tab == "users" do
         Accounts.list_users(%{
           page: page,
@@ -85,8 +85,8 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
       else
         {socket.assigns.users, socket.assigns.pagination}
       end
-    
-    socket = 
+
+    socket =
       socket
       |> assign(:selected_tab, selected_tab)
       |> assign(:users, users)
@@ -95,34 +95,34 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
       |> assign(:filter_opts, filter_opts)
       |> assign(:filter_admin, admin_filter)
       |> assign(:filter_confirmed, confirmed_filter)
-    
+
     {:noreply, socket}
   end
-  
+
   @impl true
   def handle_event("toggle_admin", %{"id" => user_id}, socket) do
     with %{users: users} <- socket.assigns,
          user when not is_nil(user) <- Enum.find(users, fn u -> "#{u.id}" == user_id end) do
-      
+
       case Accounts.set_admin_status(user, !user.is_admin) do
         {:ok, updated_user} ->
           # Update the user in the list
-          updated_users = 
-            Enum.map(users, fn u -> 
-              if u.id == updated_user.id, do: updated_user, else: u 
+          updated_users =
+            Enum.map(users, fn u ->
+              if u.id == updated_user.id, do: updated_user, else: u
             end)
-          
+
           # Get updated stats
           stats = Accounts.get_user_stats()
-          
-          socket = 
+
+          socket =
             socket
             |> assign(:users, updated_users)
             |> assign(:metrics, %{socket.assigns.metrics | admin_users: stats.admin_users})
             |> put_flash(:info, "User admin status updated successfully")
-          
+
           {:noreply, socket}
-          
+
         {:error, _changeset} ->
           socket = socket |> put_flash(:error, "Failed to update user admin status")
           {:noreply, socket}
@@ -133,7 +133,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
         {:noreply, socket}
     end
   end
-  
+
   @impl true
   def handle_event("search", %{"search" => %{"term" => search_term}}, socket) do
     # Build the params map for navigation
@@ -141,53 +141,53 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
     params = if search_term != "", do: Map.put(params, "search", search_term), else: params
     params = if socket.assigns.filter_admin, do: Map.put(params, "admin", socket.assigns.filter_admin), else: params
     params = if socket.assigns.filter_confirmed, do: Map.put(params, "confirmed", socket.assigns.filter_confirmed), else: params
-    
+
     # Navigate to apply search
     {:noreply, push_patch(socket, to: ~p"/admin/dashboard?#{params}")}
   end
-  
+
   @impl true
   def handle_event("filter_admin", %{"value" => value}, socket) do
     # Build the params map for navigation
     params = %{"page" => "1", "admin" => value, "tab" => "users"}
     params = if socket.assigns.search_term != "", do: Map.put(params, "search", socket.assigns.search_term), else: params
     params = if socket.assigns.filter_confirmed, do: Map.put(params, "confirmed", socket.assigns.filter_confirmed), else: params
-    
+
     # Navigate to apply filter
     {:noreply, push_patch(socket, to: ~p"/admin/dashboard?#{params}")}
   end
-  
+
   @impl true
   def handle_event("filter_confirmed", %{"value" => value}, socket) do
     # Build the params map for navigation
     params = %{"page" => "1", "confirmed" => value, "tab" => "users"}
     params = if socket.assigns.search_term != "", do: Map.put(params, "search", socket.assigns.search_term), else: params
     params = if socket.assigns.filter_admin, do: Map.put(params, "admin", socket.assigns.filter_admin), else: params
-    
+
     # Navigate to apply filter
     {:noreply, push_patch(socket, to: ~p"/admin/dashboard?#{params}")}
   end
-  
+
   @impl true
   def handle_event("show_user", %{"id" => user_id}, socket) do
     with %{users: users} <- socket.assigns,
          user when not is_nil(user) <- Enum.find(users, fn u -> "#{u.id}" == user_id end) do
-      
+
       # Get user activity data
       activity = Accounts.get_user_activity(user)
-      
+
       {:noreply, assign(socket, show_user_modal: true, selected_user: user, user_activity: activity)}
     else
       _ ->
         {:noreply, put_flash(socket, :error, "User not found")}
     end
   end
-  
+
   @impl true
   def handle_event("close_user_modal", _, socket) do
     {:noreply, assign(socket, show_user_modal: false, selected_user: nil, user_activity: nil)}
   end
-  
+
   @impl true
   def handle_event("change_tab", %{"tab" => tab}, socket) do
     {:noreply, push_patch(socket, to: ~p"/admin/dashboard?#{%{tab: tab}}")}
@@ -201,7 +201,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
         <h1 class="text-2xl font-bold">Admin Dashboard</h1>
         <p class="text-gray-500">Welcome to the administrative interface</p>
       </div>
-      
+
       <div class="tabs tabs-boxed mb-6">
         <a class={["tab", @selected_tab == "overview" && "tab-active"]} phx-click="change_tab" phx-value-tab="overview">
           Overview
@@ -213,32 +213,32 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
           System Settings
         </a>
       </div>
-      
+
       <%= if @selected_tab == "overview" do %>
         <.dashboard_overview metrics={@metrics} recent_users={@recent_users} />
       <% end %>
-      
+
       <%= if @selected_tab == "users" do %>
         <.user_management
           users={@users}
-          pagination={@pagination} 
+          pagination={@pagination}
           search_term={@search_term}
           filter_admin={@filter_admin}
           filter_confirmed={@filter_confirmed}
         />
       <% end %>
-      
+
       <%= if @selected_tab == "settings" do %>
         <.system_settings />
       <% end %>
-      
+
       <%= if @show_user_modal do %>
         <.user_details_modal user={@selected_user} activity={@user_activity} />
       <% end %>
     </div>
     """
   end
-  
+
   def dashboard_overview(assigns) do
     ~H"""
     <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -249,7 +249,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
           <div class="stat-desc">Registered accounts</div>
         </div>
       </div>
-      
+
       <div class="stats shadow">
         <div class="stat">
           <div class="stat-title">Active Users</div>
@@ -257,7 +257,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
           <div class="stat-desc">Last 30 days</div>
         </div>
       </div>
-      
+
       <div class="stats shadow">
         <div class="stat">
           <div class="stat-title">Admin Users</div>
@@ -265,7 +265,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
           <div class="stat-desc">With elevated access</div>
         </div>
       </div>
-      
+
       <div class="stats shadow">
         <div class="stat">
           <div class="stat-title">System Status</div>
@@ -321,7 +321,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
     <div class="space-y-6">
       <div class="flex gap-4 items-center">
         <div class="flex-1">
-          <.form :let={f} for={%{}} as={:search} phx-submit="search" class="w-full">
+          <.form :let={_f} for={%{}} as={:search} phx-submit="search" class="w-full">
             <div class="input-group w-full">
               <input
                 type="text"
@@ -336,7 +336,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
             </div>
           </.form>
         </div>
-        
+
         <div class="join">
           <button
             class={["btn btn-sm join-item", is_nil(@filter_admin) && "btn-active"]}
@@ -360,7 +360,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
             Regular
           </button>
         </div>
-        
+
         <div class="join">
           <button
             class={["btn btn-sm join-item", is_nil(@filter_confirmed) && "btn-active"]}
@@ -442,7 +442,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
         <div class="text-sm text-gray-600">
           Showing <%= length(@users) %> of <%= @pagination.total_count %> users
         </div>
-        
+
         <div class="join">
           <%= for page <- 1..@pagination.total_pages do %>
             <.link
@@ -521,13 +521,13 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
     <div class="modal modal-open">
       <div class="modal-box">
         <h3 class="font-bold text-lg mb-4">User Details</h3>
-        
+
         <div class="space-y-4">
           <div>
             <label class="text-sm font-medium">Email</label>
             <p class="text-lg"><%= @user.email %></p>
           </div>
-          
+
           <div>
             <label class="text-sm font-medium">Status</label>
             <div class="flex gap-2 mt-1">
@@ -541,7 +541,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
               <% end %>
             </div>
           </div>
-          
+
           <div>
             <label class="text-sm font-medium">Activity</label>
             <dl class="mt-1 space-y-1 text-sm">
@@ -562,7 +562,7 @@ defmodule HeadsUpWeb.Admin.DashboardLive do
             </dl>
           </div>
         </div>
-        
+
         <div class="modal-action">
           <button class="btn" phx-click="close_user_modal">Close</button>
         </div>
