@@ -119,6 +119,42 @@ defmodule HeadsUp.Accounts do
     |> Ecto.Multi.delete_all(:tokens, UserToken.by_user_and_contexts_query(user, [context]))
   end
 
+  @doc """
+  Returns an `%Ecto.Changeset{}` for changing the user roles.
+
+  ## Examples
+
+      iex> change_user_roles(user, %{})
+      %Ecto.Changeset{data: %User{}}
+
+  """
+  def change_user_roles(%User{} = user, attrs \\ %{}) do
+    # In a real application, you would likely want this changeset logic
+    # inside the `HeadsUp.Accounts.User` module as `User.roles_changeset/2`.
+    import Ecto.Changeset
+
+    cast(user, attrs, [:is_admin, :is_editor])
+  end
+
+  @doc """
+  Updates a user's roles.
+
+  This function is intended to be used by administrators.
+
+  ## Examples
+
+      iex> update_user_roles(user, %{is_admin: true})
+      {:ok, %User{}}
+
+      iex> update_user_roles(user, %{is_admin: "invalid"})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_user_roles(%User{} = user, attrs) do
+    user
+    |> change_user_roles(attrs)
+    |> Repo.update()
+  end
 
 
 
