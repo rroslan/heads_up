@@ -245,6 +245,34 @@ defmodule HeadsUpWeb.UserAuth do
     end
   end
 
+  def on_mount(:require_admin, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    case socket.assigns.current_scope do
+      %Scope{user: %Accounts.User{is_admin: true}} ->
+        {:cont, socket}
+
+      %Scope{user: %Accounts.User{}} ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(
+            :error,
+            "You must be an administrator to access this page."
+          )
+          |> Phoenix.LiveView.redirect(to: ~p"/")
+
+        {:halt, socket}
+
+      _ ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You must be logged in to access this page.")
+          |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+
+        {:halt, socket}
+    end
+  end
+
   defp mount_current_scope(socket, session) do
     Phoenix.Component.assign_new(socket, :current_scope, fn ->
       {user, _} =
@@ -259,6 +287,13 @@ defmodule HeadsUpWeb.UserAuth do
   @doc "Returns the path to redirect to after log in."
   # the user was already logged in, redirect to settings
   def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}) do
+    ~p"/users/settings"
+  end
+
+  # For LiveView sockets
+  def signed_in_path(%Phoenix.LiveView.Socket{
+        assigns: %{current_scope: %Scope{user: %Accounts.User{}}}
+      }) do
     ~p"/users/settings"
   end
 

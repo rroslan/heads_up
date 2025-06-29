@@ -9,7 +9,6 @@ defmodule HeadsUpWeb.UserLive.LoginTest do
       {:ok, _lv, html} = live(conn, ~p"/users/log-in")
 
       assert html =~ "Log in"
-      assert html =~ "Register"
       assert html =~ "Log in with email"
     end
   end
@@ -43,21 +42,7 @@ defmodule HeadsUpWeb.UserLive.LoginTest do
     end
   end
 
-
-
-  describe "login navigation" do
-    test "redirects to registration page when the Register button is clicked", %{conn: conn} do
-      {:ok, lv, _html} = live(conn, ~p"/users/log-in")
-
-      {:ok, _login_live, login_html} =
-        lv
-        |> element("main a", "Sign up")
-        |> render_click()
-        |> follow_redirect(conn, ~p"/users/register")
-
-      assert login_html =~ "Register"
-    end
-  end
+  # Registration is now admin-only, no public registration navigation
 
   describe "re-authentication (sudo mode)" do
     setup %{conn: conn} do

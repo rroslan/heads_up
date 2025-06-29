@@ -54,6 +54,10 @@ defmodule HeadsUpWeb.Router do
       on_mount: [{HeadsUpWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+    end
+
+    live_session :require_admin_user,
+      on_mount: [{HeadsUpWeb.UserAuth, :require_admin}] do
       live "/users", UserLive.Management, :index
     end
 

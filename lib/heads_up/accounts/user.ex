@@ -25,7 +25,7 @@ defmodule HeadsUp.Accounts.User do
   """
   def email_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email])
+    |> cast(attrs, [:email, :is_admin, :is_editor])
     |> validate_email(opts)
   end
 
@@ -55,13 +55,6 @@ defmodule HeadsUp.Accounts.User do
       changeset
     end
   end
-
-
-
-
-
-
-
 
   @doc """
   Confirms the account by setting `confirmed_at`.

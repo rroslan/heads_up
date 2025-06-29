@@ -19,7 +19,7 @@ defmodule HeadsUpWeb.Layouts do
       <Layouts.app flash={@flash}>
         <h1>Content</h1>
       </Layout.app>
-      
+
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
 
@@ -40,19 +40,32 @@ defmodule HeadsUpWeb.Layouts do
       </div>
       <div class="flex-none">
         <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
+          <%= if @current_scope && @current_scope.user do %>
+            <li>
+              <span class="text-sm text-base-content/70">
+                {String.split(@current_scope.user.email, "@") |> hd()}
+              </span>
+            </li>
+            <%= if @current_scope.user.is_admin do %>
+              <li>
+                <a href={~p"/users"} class="btn btn-outline btn-sm">Manage Users</a>
+              </li>
+            <% end %>
+            <li>
+              <a href={~p"/users/settings"} class="btn btn-ghost btn-sm">Settings</a>
+            </li>
+            <li>
+              <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost btn-sm">
+                Log out
+              </.link>
+            </li>
+          <% else %>
+            <li>
+              <a href={~p"/users/log-in"} class="btn btn-primary btn-sm">Log in</a>
+            </li>
+          <% end %>
           <li>
             <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
           </li>
         </ul>
       </div>

@@ -26,7 +26,6 @@ defmodule HeadsUp.Accounts do
     Repo.get_by(User, email: email)
   end
 
-
   @doc """
   Gets a single user.
 
@@ -42,6 +41,19 @@ defmodule HeadsUp.Accounts do
 
   """
   def get_user!(id), do: Repo.get!(User, id)
+
+  @doc """
+  Returns the list of users.
+
+  ## Examples
+
+      iex> list_users()
+      [%User{}, ...]
+
+  """
+  def list_users do
+    Repo.all(User)
+  end
 
   ## User registration
 
@@ -156,7 +168,21 @@ defmodule HeadsUp.Accounts do
     |> Repo.update()
   end
 
+  @doc """
+  Deletes a user.
 
+  ## Examples
+
+      iex> delete_user(user)
+      {:ok, %User{}}
+
+      iex> delete_user(user)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_user(%User{} = user) do
+    Repo.delete(user)
+  end
 
   @doc """
   Generates a session token.
@@ -212,7 +238,6 @@ defmodule HeadsUp.Accounts do
 
     case Repo.one(query) do
       # Prevent session fixation attacks by disallowing magic links for unconfirmed users with password
-
 
       {%User{confirmed_at: nil} = user, _token} ->
         user
