@@ -11,7 +11,6 @@ defmodule HeadsUp.Repo.Migrations.CreateUsersAuthTables do
       add :confirmed_at, :utc_datetime
 
       timestamps(type: :utc_datetime)
-
     end
 
     create unique_index(:users, [:email])

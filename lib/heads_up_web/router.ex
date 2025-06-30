@@ -60,8 +60,6 @@ defmodule HeadsUpWeb.Router do
       on_mount: [{HeadsUpWeb.UserAuth, :require_admin}] do
       live "/users", UserLive.Management, :index
     end
-
-    post "/users/update-password", UserSessionController, :update_password
   end
 
   scope "/", HeadsUpWeb do
