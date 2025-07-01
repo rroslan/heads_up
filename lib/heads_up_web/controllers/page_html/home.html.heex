@@ -11,6 +11,19 @@
       <p class="text-lg">
         This is a user management system with role-based access control.
       </p>
+      
+<!-- Survey Token Generator Section -->
+      <div class="card bg-base-100 border border-base-200 max-w-md mx-auto mt-6">
+        <div class="card-body text-center">
+          <h2 class="card-title justify-center">Survey Access</h2>
+          <p class="text-sm text-gray-600">
+            Generate a secure token to access the survey using your Malaysian IC number
+          </p>
+          <div class="card-actions justify-center mt-4">
+            <a href={~p"/token"} class="btn btn-secondary">Generate Survey Token</a>
+          </div>
+        </div>
+      </div>
 
       <%= if @current_scope && @current_scope.user do %>
         <div class="card bg-base-100 border border-base-200 max-w-md mx-auto">

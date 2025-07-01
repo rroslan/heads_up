@@ -13,7 +13,7 @@
 alias HeadsUp.Accounts
 
 # Create admin user for development/testing
-admin_email = "admin@example.com"
+admin_email = "rroslan@gmail.com"
 
 case Accounts.get_user_by_email(admin_email) do
   nil ->
@@ -32,7 +32,7 @@ case Accounts.get_user_by_email(admin_email) do
 end
 
 # Create sample editor user
-editor_email = "editor@example.com"
+editor_email = "roslanr@gmail.com"
 
 case Accounts.get_user_by_email(editor_email) do
   nil ->
@@ -50,7 +50,7 @@ case Accounts.get_user_by_email(editor_email) do
 end
 
 # Create sample regular user
-user_email = "user@example.com"
+user_email = "dev.rroslan@gmail.com"
 
 case Accounts.get_user_by_email(user_email) do
   nil ->

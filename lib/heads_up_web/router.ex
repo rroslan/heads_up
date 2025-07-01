@@ -21,6 +21,8 @@ defmodule HeadsUpWeb.Router do
     pipe_through :browser
 
     get "/", PageController, :home
+
+    live "/survey/:token", TokenLive.Survey, :show
   end
 
   # Other scopes may use custom stacks.
@@ -54,6 +56,7 @@ defmodule HeadsUpWeb.Router do
       on_mount: [{HeadsUpWeb.UserAuth, :require_authenticated}] do
       live "/users/settings", UserLive.Settings, :edit
       live "/users/settings/confirm-email/:token", UserLive.Settings, :confirm_email
+      live "/token", TokenLive.Landing, :new
     end
 
     live_session :require_admin_user,
