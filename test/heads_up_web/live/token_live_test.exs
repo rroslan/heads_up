@@ -276,4 +276,64 @@ defmodule HeadsUpWeb.TokenLiveTest do
       refute html =~ "Survey Token Generated Successfully"
     end
   end
+
+  describe "Navigation" do
+    test "Token link is accessible for authenticated users", %{conn: conn} do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      # Test that authenticated users can access the token page
+      {:ok, _view, html} = live(conn, ~p"/token")
+
+      # Verify we're on the token generation page
+      assert html =~ "Survey Token Generator"
+      assert html =~ "User Authentication Required"
+    end
+
+    test "unauthenticated users are redirected from token page", %{conn: conn} do
+      # Unauthenticated users should be redirected to login when trying to access token page
+      assert {:error, {:redirect, %{to: "/users/log-in"}}} = live(conn, ~p"/token")
+    end
+  end
+
+  describe "Login Flow" do
+    test "user login redirects to token page", %{conn: conn} do
+      user = user_fixture()
+
+      # Simulate magic link login
+      {token, _hashed_token} = HeadsUp.AccountsFixtures.generate_user_magic_link_token(user)
+
+      conn =
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"token" => token}
+        })
+
+      # Should redirect to token page after login
+      assert redirected_to(conn) == ~p"/token"
+      assert get_session(conn, :user_token)
+    end
+
+    test "user login with return_to parameter respects original destination", %{conn: conn} do
+      user = user_fixture()
+
+      # First, try to access a protected page while unauthenticated
+      # This should store the return path in session
+      conn = get(conn, ~p"/token")
+      assert redirected_to(conn) == ~p"/users/log-in"
+
+      # Get the session with return_to stored
+      conn = get(conn, ~p"/users/log-in")
+
+      # Now login with magic link
+      {token, _hashed_token} = HeadsUp.AccountsFixtures.generate_user_magic_link_token(user)
+
+      conn =
+        post(conn, ~p"/users/log-in", %{
+          "user" => %{"token" => token}
+        })
+
+      # Should redirect back to the original destination (token page)
+      assert redirected_to(conn) == ~p"/token"
+    end
+  end
 end

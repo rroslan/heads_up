@@ -52,7 +52,7 @@ defmodule HeadsUpWeb.Layouts do
               </li>
             <% end %>
             <li>
-              <a href={~p"/users/settings"} class="btn btn-ghost btn-sm">Settings</a>
+              <a href={~p"/token"} class="btn btn-ghost btn-sm">Token</a>
             </li>
             <li>
               <.link href={~p"/users/log-out"} method="delete" class="btn btn-ghost btn-sm">

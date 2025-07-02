@@ -37,7 +37,7 @@ defmodule HeadsUpWeb.UserAuth do
 
     conn
     |> create_or_extend_session(user, params)
-    |> redirect(to: user_return_to || signed_in_path(conn))
+    |> redirect(to: user_return_to || ~p"/token")
   end
 
   @doc """
@@ -285,16 +285,16 @@ defmodule HeadsUpWeb.UserAuth do
   end
 
   @doc "Returns the path to redirect to after log in."
-  # the user was already logged in, redirect to settings
+  # Always redirect authenticated users to token page
   def signed_in_path(%Plug.Conn{assigns: %{current_scope: %Scope{user: %Accounts.User{}}}}) do
-    ~p"/users/settings"
+    ~p"/token"
   end
 
   # For LiveView sockets
   def signed_in_path(%Phoenix.LiveView.Socket{
         assigns: %{current_scope: %Scope{user: %Accounts.User{}}}
       }) do
-    ~p"/users/settings"
+    ~p"/token"
   end
 
   def signed_in_path(_), do: ~p"/"
