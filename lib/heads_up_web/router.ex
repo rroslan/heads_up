@@ -23,6 +23,7 @@ defmodule HeadsUpWeb.Router do
     get "/", PageController, :home
 
     live "/survey/:token", TokenLive.Survey, :show
+    live "/access", TokenLive.Access, :new
   end
 
   # Other scopes may use custom stacks.

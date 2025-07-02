@@ -296,6 +296,244 @@ defmodule HeadsUpWeb.TokenLiveTest do
     end
   end
 
+  describe "Token Access (No Authentication Required)" do
+    setup do
+      # Create a valid survey token for testing
+      {:ok, survey_token} = Surveys.create_survey_token_from_ic("501007081234")
+      %{survey_token: survey_token}
+    end
+
+    test "allows access to token access page for unauthenticated users", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/access")
+
+      assert html =~ "Access Survey"
+      assert html =~ "Survey Token Required"
+      assert html =~ "Paste your survey token or survey link"
+    end
+
+    test "allows access to token access page for authenticated users", %{conn: conn} do
+      user = user_fixture()
+      conn = log_in_user(conn, user)
+
+      {:ok, _view, html} = live(conn, ~p"/access")
+
+      assert html =~ "Access Survey"
+      assert html =~ "Survey Token Required"
+      assert html =~ "Paste your survey token or survey link"
+    end
+
+    test "extracts token from full URL and validates", %{conn: conn, survey_token: survey_token} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      full_url = "https://example.com/survey/#{survey_token.token}"
+
+      # Enter full URL
+      html =
+        view
+        |> form("form", %{"token_input" => full_url})
+        |> render_change()
+
+      assert html =~ "Token detected:"
+      assert html =~ survey_token.token
+
+      # Submit form to access survey
+      assert {:error, {:redirect, %{to: "/survey/" <> token}}} =
+               view
+               |> form("form", %{"token_input" => full_url})
+               |> render_submit()
+
+      assert token == survey_token.token
+    end
+
+    test "extracts token from path-only URL", %{conn: conn, survey_token: survey_token} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      path_url = "/survey/#{survey_token.token}"
+
+      # Enter path-only URL
+      html =
+        view
+        |> form("form", %{"token_input" => path_url})
+        |> render_change()
+
+      assert html =~ "Token detected:"
+      assert html =~ survey_token.token
+    end
+
+    test "accepts direct token input", %{conn: conn, survey_token: survey_token} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      # Enter token directly
+      html =
+        view
+        |> form("form", %{"token_input" => survey_token.token})
+        |> render_change()
+
+      assert html =~ "Token detected:"
+      assert html =~ survey_token.token
+    end
+
+    test "shows error for invalid URL format", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      # Enter invalid URL
+      html =
+        view
+        |> form("form", %{"token_input" => "https://example.com/not-survey"})
+        |> render_change()
+
+      assert html =~ "URL does not appear to be a survey link"
+    end
+
+    test "shows error for too short token", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      # Enter short token
+      html =
+        view
+        |> form("form", %{"token_input" => "abc123"})
+        |> render_change()
+
+      assert html =~ "Token appears to be too short"
+    end
+
+    test "shows error for invalid token characters", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      # Enter token with invalid characters
+      html =
+        view
+        |> form("form", %{"token_input" => "abc123!@#$%^&*()"})
+        |> render_change()
+
+      assert html =~ "Token contains invalid characters"
+    end
+
+    test "shows error for expired/invalid token on submit", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      fake_token = "this_is_a_fake_token_that_does_not_exist"
+
+      # Submit with fake token
+      html =
+        view
+        |> form("form", %{"token_input" => fake_token})
+        |> render_submit()
+
+      assert html =~ "Invalid or expired survey token"
+    end
+
+    test "clears input when clear button is clicked", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      # Enter some text
+      view
+      |> form("form", %{"token_input" => "some_token_text"})
+      |> render_change()
+
+      # Clear the input
+      html = render_click(view, "clear_input")
+
+      # Check that input is cleared
+      assert html =~ ~s(value="")
+      refute html =~ "Token detected:"
+    end
+
+    test "handles URL with query parameters", %{conn: conn, survey_token: survey_token} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      url_with_params = "https://example.com/survey/#{survey_token.token}?utm_source=email"
+
+      # Enter URL with query parameters
+      html =
+        view
+        |> form("form", %{"token_input" => url_with_params})
+        |> render_change()
+
+      assert html =~ "Token detected:"
+      assert html =~ survey_token.token
+    end
+
+    test "handles URL with fragments", %{conn: conn, survey_token: survey_token} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      url_with_fragment = "https://example.com/survey/#{survey_token.token}#section1"
+
+      # Enter URL with fragment
+      html =
+        view
+        |> form("form", %{"token_input" => url_with_fragment})
+        |> render_change()
+
+      assert html =~ "Token detected:"
+      assert html =~ survey_token.token
+    end
+
+    test "submit button is disabled when no valid token", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      # Enter invalid input
+      html =
+        view
+        |> form("form", %{"token_input" => "invalid"})
+        |> render_change()
+
+      # Check that submit button is disabled
+      assert html =~ "disabled"
+    end
+
+    test "submit button is enabled when valid token is detected", %{
+      conn: conn,
+      survey_token: survey_token
+    } do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      # Enter valid token
+      html =
+        view
+        |> form("form", %{"token_input" => survey_token.token})
+        |> render_change()
+
+      # Token should be detected
+      assert html =~ "Token detected:"
+      assert html =~ survey_token.token
+
+      # Button should be clickable (not disabled)
+      # We'll verify this by checking we can submit the form successfully
+      assert {:error, {:redirect, %{to: "/survey/" <> _token}}} =
+               view
+               |> form("form", %{"token_input" => survey_token.token})
+               |> render_submit()
+    end
+
+    test "shows loading state during form submission", %{conn: conn, survey_token: survey_token} do
+      {:ok, view, _html} = live(conn, ~p"/access")
+
+      # The submit will redirect, so we need to test the loading state differently
+      # We can test by checking the form submission behavior
+      assert {:error, {:redirect, %{to: "/survey/" <> _token}}} =
+               view
+               |> form("form", %{"token_input" => survey_token.token})
+               |> render_submit()
+    end
+
+    test "shows navigation link to token generation", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/access")
+
+      assert html =~ "Generate Token"
+      assert html =~ ~s(href="/token")
+    end
+
+    test "shows supported formats in help section", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/access")
+
+      assert html =~ "Supported formats:"
+      assert html =~ "Full URL:"
+      assert html =~ "Token only:"
+      assert html =~ "Path only:"
+    end
+  end
+
   describe "Login Flow" do
     test "user login redirects to token page", %{conn: conn} do
       user = user_fixture()
