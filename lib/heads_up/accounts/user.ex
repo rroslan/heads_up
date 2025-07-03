@@ -4,6 +4,7 @@ defmodule HeadsUp.Accounts.User do
 
   schema "users" do
     field :email, :string
+    field :ic_number, :string
     field :is_admin, :boolean, default: false
     field :is_editor, :boolean, default: false
     field :confirmed_at, :utc_datetime
@@ -25,8 +26,9 @@ defmodule HeadsUp.Accounts.User do
   """
   def email_changeset(user, attrs, opts \\ []) do
     user
-    |> cast(attrs, [:email, :is_admin, :is_editor])
+    |> cast(attrs, [:email, :ic_number, :is_admin, :is_editor])
     |> validate_email(opts)
+    |> validate_ic_number()
   end
 
   defp validate_email(changeset, opts) do
@@ -62,5 +64,11 @@ defmodule HeadsUp.Accounts.User do
   def confirm_changeset(user) do
     now = DateTime.utc_now(:second)
     change(user, confirmed_at: now)
+  end
+
+  defp validate_ic_number(changeset) do
+    changeset
+    |> validate_length(:ic_number, is: 12, message: "must be exactly 12 digits")
+    |> validate_format(:ic_number, ~r/^[0-9]{12}$/, message: "must contain only digits")
   end
 end

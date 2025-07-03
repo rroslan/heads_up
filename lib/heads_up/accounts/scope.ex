@@ -30,4 +30,29 @@ defmodule HeadsUp.Accounts.Scope do
   end
 
   def for_user(nil), do: nil
+
+  @doc """
+  Checks if the scope represents an admin user.
+  """
+  def admin?(%__MODULE__{user: %User{is_admin: true}}), do: true
+  def admin?(_), do: false
+
+  @doc """
+  Checks if the scope represents an editor user.
+  """
+  def editor?(%__MODULE__{user: %User{is_editor: true}}), do: true
+  def editor?(_), do: false
+
+  @doc """
+  Checks if the scope represents a user with editor or admin privileges.
+  """
+  def can_edit?(%__MODULE__{user: %User{is_admin: true}}), do: true
+  def can_edit?(%__MODULE__{user: %User{is_editor: true}}), do: true
+  def can_edit?(_), do: false
+
+  @doc """
+  Checks if the scope represents an authenticated user.
+  """
+  def authenticated?(%__MODULE__{user: %User{}}), do: true
+  def authenticated?(_), do: false
 end

@@ -18,7 +18,11 @@ defmodule HeadsUp.Surveys do
 
   """
   def list_survey_tokens do
-    Repo.all(SurveyToken)
+    from(t in SurveyToken,
+      order_by: [desc: t.inserted_at],
+      preload: [:created_by_user]
+    )
+    |> Repo.all()
   end
 
   @doc """
@@ -80,14 +84,14 @@ defmodule HeadsUp.Surveys do
 
   ## Examples
 
-      iex> create_survey_token_from_ic("501007081234")
+      iex> create_survey_token_from_ic("501007081234", user)
       {:ok, %SurveyToken{}}
 
-      iex> create_survey_token_from_ic("invalid")
+      iex> create_survey_token_from_ic("invalid", user)
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_survey_token_from_ic(ic_number) do
+  def create_survey_token_from_ic(ic_number, created_by_user \\ nil) do
     # Check if token already exists for this IC
     case get_survey_token_by_ic(ic_number) do
       {:ok, existing_token} ->
@@ -96,16 +100,16 @@ defmodule HeadsUp.Surveys do
         else
           # Delete old invalid token and create new one
           delete_survey_token(existing_token)
-          create_new_token_from_ic(ic_number)
+          create_new_token_from_ic(ic_number, created_by_user)
         end
 
       {:error, :not_found} ->
-        create_new_token_from_ic(ic_number)
+        create_new_token_from_ic(ic_number, created_by_user)
     end
   end
 
-  defp create_new_token_from_ic(ic_number) do
-    case SurveyToken.create_from_ic(ic_number) do
+  defp create_new_token_from_ic(ic_number, created_by_user) do
+    case SurveyToken.create_from_ic(ic_number, created_by_user) do
       {:ok, changeset} ->
         Repo.insert(changeset)
 
@@ -243,5 +247,112 @@ defmodule HeadsUp.Surveys do
   """
   def get_ic_info(ic_number) do
     SurveyToken.parse_ic(ic_number)
+  end
+
+  @doc """
+  Gets survey tokens created by a specific user.
+
+  ## Examples
+
+      iex> list_survey_tokens_by_user(user)
+      [%SurveyToken{}, ...]
+
+  """
+  def list_survey_tokens_by_user(user) do
+    from(t in SurveyToken,
+      where: t.created_by_user_id == ^user.id,
+      order_by: [desc: t.inserted_at],
+      preload: [:created_by_user]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets survey token statistics for a user.
+
+  ## Examples
+
+      iex> get_user_token_stats(user)
+      %{total: 5, used: 2, expired: 1, active: 2}
+
+  """
+  def get_user_token_stats(user) do
+    base_query = from(t in SurveyToken, where: t.created_by_user_id == ^user.id)
+    now = DateTime.utc_now()
+
+    total = Repo.aggregate(base_query, :count)
+
+    used =
+      from(t in base_query, where: not is_nil(t.used_at))
+      |> Repo.aggregate(:count)
+
+    expired =
+      from(t in base_query, where: t.expires_at < ^now and is_nil(t.used_at))
+      |> Repo.aggregate(:count)
+
+    active =
+      from(t in base_query, where: t.expires_at >= ^now and is_nil(t.used_at))
+      |> Repo.aggregate(:count)
+
+    %{
+      total: total,
+      used: used,
+      expired: expired,
+      active: active
+    }
+  end
+
+  @doc """
+  Gets survey tokens for a specific user by their IC number.
+  This shows tokens that were generated FOR a user, not BY a user.
+
+  ## Examples
+
+      iex> list_survey_tokens_for_user("501007081234")
+      [%SurveyToken{}, ...]
+
+  """
+  def list_survey_tokens_for_user(ic_number) do
+    from(t in SurveyToken,
+      where: t.ic_number == ^ic_number,
+      order_by: [desc: t.inserted_at],
+      preload: [:created_by_user]
+    )
+    |> Repo.all()
+  end
+
+  @doc """
+  Gets survey token statistics for tokens created for a specific IC number.
+
+  ## Examples
+
+      iex> get_ic_token_stats("501007081234")
+      %{total: 2, used: 1, expired: 0, active: 1}
+
+  """
+  def get_ic_token_stats(ic_number) do
+    base_query = from(t in SurveyToken, where: t.ic_number == ^ic_number)
+    now = DateTime.utc_now()
+
+    total = Repo.aggregate(base_query, :count)
+
+    used =
+      from(t in base_query, where: not is_nil(t.used_at))
+      |> Repo.aggregate(:count)
+
+    expired =
+      from(t in base_query, where: t.expires_at < ^now and is_nil(t.used_at))
+      |> Repo.aggregate(:count)
+
+    active =
+      from(t in base_query, where: t.expires_at >= ^now and is_nil(t.used_at))
+      |> Repo.aggregate(:count)
+
+    %{
+      total: total,
+      used: used,
+      expired: expired,
+      active: active
+    }
   end
 end

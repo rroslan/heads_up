@@ -13,6 +13,8 @@ defmodule HeadsUp.Surveys.SurveyToken do
     field :expires_at, :utc_datetime
     field :created_at, :utc_datetime
 
+    belongs_to :created_by_user, HeadsUp.Accounts.User, foreign_key: :created_by_user_id
+
     timestamps(type: :utc_datetime)
   end
 
@@ -28,7 +30,8 @@ defmodule HeadsUp.Surveys.SurveyToken do
       :age,
       :used_at,
       :expires_at,
-      :created_at
+      :created_at,
+      :created_by_user_id
     ])
     |> validate_required([:ic_number, :token, :expires_at, :created_at])
     |> validate_length(:ic_number, is: 12)
@@ -43,7 +46,9 @@ defmodule HeadsUp.Surveys.SurveyToken do
   Creates a new survey token from Malaysian IC number.
   Parses the IC to extract birth date, birth place, gender, and age.
   """
-  def create_from_ic(ic_number) when is_binary(ic_number) do
+  def create_from_ic(ic_number, created_by_user \\ nil)
+
+  def create_from_ic(ic_number, created_by_user) when is_binary(ic_number) do
     if byte_size(ic_number) == 12 do
       with {:ok, parsed_data} <- parse_ic(ic_number) do
         token = generate_token()
@@ -56,7 +61,8 @@ defmodule HeadsUp.Surveys.SurveyToken do
             ic_number: ic_number,
             token: token,
             expires_at: expires_at,
-            created_at: created_at
+            created_at: created_at,
+            created_by_user_id: created_by_user && created_by_user.id
           })
 
         {:ok, %__MODULE__{} |> changeset(attrs)}
@@ -68,7 +74,7 @@ defmodule HeadsUp.Surveys.SurveyToken do
     end
   end
 
-  def create_from_ic(_), do: {:error, "Invalid IC format"}
+  def create_from_ic(_, _), do: {:error, "Invalid IC format"}
 
   @doc """
   Parses Malaysian IC number to extract demographic information.

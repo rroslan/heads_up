@@ -169,6 +169,84 @@ defmodule HeadsUp.Accounts do
   end
 
   @doc """
+  Checks if a user has admin privileges.
+
+  ## Examples
+
+      iex> admin?(user)
+      true
+
+      iex> admin?(nil)
+      false
+
+  """
+  def admin?(%User{is_admin: true}), do: true
+  def admin?(_), do: false
+
+  @doc """
+  Checks if a user has editor privileges.
+
+  ## Examples
+
+      iex> editor?(user)
+      true
+
+      iex> editor?(nil)
+      false
+
+  """
+  def editor?(%User{is_editor: true}), do: true
+  def editor?(_), do: false
+
+  @doc """
+  Checks if a user has editor or admin privileges.
+
+  ## Examples
+
+      iex> can_edit?(user)
+      true
+
+      iex> can_edit?(nil)
+      false
+
+  """
+  def can_edit?(%User{is_admin: true}), do: true
+  def can_edit?(%User{is_editor: true}), do: true
+  def can_edit?(_), do: false
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for changing the user IC number.
+
+  ## Examples
+
+      iex> change_user_ic(user)
+      %Ecto.Changeset{data: %User{}}
+
+  """
+  def change_user_ic(user, attrs \\ %{}) do
+    user
+    |> User.email_changeset(attrs, validate_email: false)
+  end
+
+  @doc """
+  Updates a user's IC number.
+
+  ## Examples
+
+      iex> update_user_ic(user, %{ic_number: "501007081234"})
+      {:ok, %User{}}
+
+      iex> update_user_ic(user, %{ic_number: "invalid"})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_user_ic(%User{} = user, attrs) do
+    user
+    |> change_user_ic(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
   Deletes a user.
 
   ## Examples

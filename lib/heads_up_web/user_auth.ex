@@ -273,6 +273,37 @@ defmodule HeadsUpWeb.UserAuth do
     end
   end
 
+  def on_mount(:require_editor, _params, session, socket) do
+    socket = mount_current_scope(socket, session)
+
+    case socket.assigns.current_scope do
+      %Scope{user: %Accounts.User{is_admin: true}} ->
+        {:cont, socket}
+
+      %Scope{user: %Accounts.User{is_editor: true}} ->
+        {:cont, socket}
+
+      %Scope{user: %Accounts.User{}} ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(
+            :error,
+            "You must be an editor or administrator to access this page."
+          )
+          |> Phoenix.LiveView.redirect(to: ~p"/")
+
+        {:halt, socket}
+
+      _ ->
+        socket =
+          socket
+          |> Phoenix.LiveView.put_flash(:error, "You must be logged in to access this page.")
+          |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+
+        {:halt, socket}
+    end
+  end
+
   defp mount_current_scope(socket, session) do
     Phoenix.Component.assign_new(socket, :current_scope, fn ->
       {user, _} =
@@ -311,6 +342,32 @@ defmodule HeadsUpWeb.UserAuth do
       |> maybe_store_return_to()
       |> redirect(to: ~p"/users/log-in")
       |> halt()
+    end
+  end
+
+  @doc """
+  Plug for routes that require the user to have editor or admin privileges.
+  """
+  def require_editor_user(conn, _opts) do
+    case conn.assigns.current_scope do
+      %Scope{user: %Accounts.User{is_admin: true}} ->
+        conn
+
+      %Scope{user: %Accounts.User{is_editor: true}} ->
+        conn
+
+      %Scope{user: %Accounts.User{}} ->
+        conn
+        |> put_flash(:error, "You must be an editor or administrator to access this page.")
+        |> redirect(to: ~p"/")
+        |> halt()
+
+      _ ->
+        conn
+        |> put_flash(:error, "You must log in to access this page.")
+        |> maybe_store_return_to()
+        |> redirect(to: ~p"/users/log-in")
+        |> halt()
     end
   end
 
